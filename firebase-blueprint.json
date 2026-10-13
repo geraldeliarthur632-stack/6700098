@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and contact information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique user ID" },
+        "name": { "type": "string", "description": "Display name" },
+        "photoURL": { "type": "string", "description": "Profile picture URL" },
+        "email": { "type": "string", "description": "User email" },
+        "phoneNumber": { "type": "string", "description": "User phone number" },
+        "contacts": { "type": "array", "items": { "type": "string" }, "description": "List of contact UIDs" },
+        "status": { "type": "string", "enum": ["online", "offline", "mesh"], "description": "Current connection status" },
+        "lastSeen": { "type": "number", "description": "Last seen timestamp" },
+        "isTyping": { "type": "boolean", "description": "Whether the user is typing" },
+        "publicKey": { "type": "string", "description": "Public key for E2EE" },
+        "bio": { "type": "string", "description": "User bio/description" },
+        "password": { "type": "string", "description": "Optional app password" },
+        "role": { "type": "string", "enum": ["admin", "user"], "description": "User role" },
+        "archivedConversations": { "type": "array", "items": { "type": "string" }, "description": "List of archived conversation IDs" },
+        "permissionsConfigured": { "type": "boolean", "description": "Whether permissions were configured" },
+        "profileCompleted": { "type": "boolean", "description": "Whether user finished initial profile setup" },
+        "backupMetadata": { "type": "object", "description": "Metadata about user cloud backups" }
+      },
+      "required": ["uid", "name", "status", "lastSeen"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "A chat conversation between users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique conversation ID" },
+        "participants": { "type": "array", "items": { "type": "string" }, "description": "List of participant UIDs" },
+        "updatedAt": { "type": "number", "description": "Last update timestamp" },
+        "isGroup": { "type": "boolean", "description": "Whether this is a group chat" },
+        "groupName": { "type": "string", "description": "Name of the group" },
+        "groupPhoto": { "type": "string", "description": "Group photo URL" },
+        "adminId": { "type": "string", "description": "UID of the group admin" },
+        "archivedBy": { "type": "array", "items": { "type": "string" }, "description": "List of user UIDs who archived this chat" },
+        "lastMessage": { "type": "object", "description": "Snippet of last message" }
+      },
+      "required": ["id", "participants", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A single message in a conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique message ID" },
+        "conversationId": { "type": "string", "description": "ID of the conversation" },
+        "senderId": { "type": "string", "description": "ID of the sender" },
+        "text": { "type": "string", "description": "Message text" },
+        "type": { "type": "string", "enum": ["text", "image", "video", "file", "audio"], "description": "Message type" },
+        "fileUrl": { "type": "string", "description": "URL of the attached file" },
+        "createdAt": { "type": "number", "description": "Creation timestamp" },
+        "expiresAt": { "type": "number", "description": "Expiration timestamp (26h)" },
+        "delivered": { "type": "boolean", "description": "Whether the message was delivered" },
+        "seen": { "type": "boolean", "description": "Whether the message was seen" },
+        "readAt": { "type": "number", "description": "Timestamp when message was read" },
+        "status": { "type": "string", "enum": ["sent", "delivered", "read"], "description": "Check mark status" },
+        "deliveryMethod": { "type": "string", "enum": ["internet", "wifi-direct", "bluetooth", "mesh", "ultrasound", "optical-qr", "local-lan"], "description": "Method of delivery (online server or offline mesh/ultrasound/optical/LAN)" },
+        "isEncrypted": { "type": "boolean", "description": "Whether the message is encrypted" },
+        "duration": { "type": "number", "description": "Duration in seconds for audio notes" },
+        "reactions": { "type": "object", "description": "Map of user reactions" },
+        "offlineSynced": { "type": "boolean", "description": "Whether message originated offline and was synced to server" },
+        "pendingOfflineSync": { "type": "boolean", "description": "Pending offline sync flag" }
+      },
+      "required": ["id", "conversationId", "senderId", "text", "type", "createdAt", "expiresAt", "delivered", "seen", "deliveryMethod", "isEncrypted"]
+    },
+    "Status": {
+      "title": "Status",
+      "description": "A temporary status update (WhatsApp-style)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique status ID" },
+        "uid": { "type": "string", "description": "UID of the user" },
+        "userName": { "type": "string", "description": "Name of the user" },
+        "userPhoto": { "type": "string", "description": "Photo of the user" },
+        "content": { "type": "string", "description": "Status content (text or image URL)" },
+        "type": { "type": "string", "enum": ["text", "image"], "description": "Status type" },
+        "createdAt": { "type": "number", "description": "Creation timestamp" },
+        "expiresAt": { "type": "number", "description": "Expiration timestamp" },
+        "seenBy": { "type": "array", "items": { "type": "string" }, "description": "List of UIDs who saw the status" }
+      },
+      "required": ["id", "uid", "userName", "content", "type", "createdAt", "expiresAt", "seenBy"]
+    },
+    "QRSession": {
+      "title": "QRSession",
+      "description": "WhatsApp Web-style QR code login pairing session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Session unique ID" },
+        "secretKey": { "type": "string", "description": "Ephemeral symmetric key for payload exchange" },
+        "status": { "type": "string", "enum": ["pending", "scanned", "authenticated", "completed", "expired"], "description": "Pairing status" },
+        "createdAt": { "type": "number", "description": "Creation timestamp" },
+        "expiresAt": { "type": "number", "description": "Expiry timestamp" },
+        "deviceInfo": { "type": "object", "description": "Target device info (browser, platform, os)" },
+        "authenticatedUid": { "type": "string", "description": "UID of the authenticating user" },
+        "encryptedPayload": { "type": "string", "description": "Encrypted auth credential payload" },
+        "pairedAt": { "type": "number", "description": "Timestamp when pairing was completed" }
+      },
+      "required": ["id", "secretKey", "status", "createdAt", "expiresAt"]
+    },
+    "Backup": {
+      "title": "Backup",
+      "description": "Snapshot of user conversations and messages stored in the database",
+      "type": "object",
+      "properties": {
+        "backupJson": { "type": "string", "description": "Serialized backup payload" },
+        "lastBackupAt": { "type": "number", "description": "Timestamp when backup was created" },
+        "totalChats": { "type": "number", "description": "Number of conversations included" },
+        "totalMessages": { "type": "number", "description": "Number of messages included" },
+        "sizeBytes": { "type": "number", "description": "Size in bytes" },
+        "device": { "type": "string", "description": "Device name or agent that produced the backup" }
+      },
+      "required": ["backupJson", "lastBackupAt", "totalChats", "totalMessages"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profiles" },
+    "/users/{uid}/backups/{backupId}": { "schema": "Backup", "description": "User backup records stored in the cloud database" },
+    "/users_public/{uid}": { "schema": "User", "description": "Public user profiles (subset of User)" },
+    "/users_search/{id}": { "schema": "object", "description": "Mapping of email/phone to UID for search" },
+    "/status/{statusId}": { "schema": "Status", "description": "User status updates" },
+    "/conversations/{conversationId}": { "schema": "Conversation", "description": "Chat conversations" },
+    "/conversations/{conversationId}/messages/{messageId}": { "schema": "Message", "description": "Messages within a conversation" },
+    "/qr_sessions/{sessionId}": { "schema": "QRSession", "description": "WhatsApp Web QR login pairing sessions" },
+    "/test/{docId}": { "schema": "object", "description": "Test connection ping collection" }
+  }
+}

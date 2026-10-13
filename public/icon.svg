@@ -1,0 +1,43 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111B21" />
+      <stop offset="100%" stop-color="#0B141A" />
+    </linearGradient>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00D29E" />
+      <stop offset="100%" stop-color="#008F6E" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Background squircle -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad)" />
+  <rect x="2" y="2" width="508" height="508" rx="114" stroke="#222E35" stroke-width="3" fill="none" />
+
+  <!-- Main Speech Bubble with tail -->
+  <g filter="url(#shadow)">
+    <path d="M256 100C163.2 100 88 171.6 88 260C88 290.4 97.4 318.8 113.8 343L96 408L165.6 392.2C192.2 409.6 223.2 420 256 420C348.8 420 424 348.4 424 260C424 171.6 348.8 100 256 100Z" fill="url(#brandGrad)" />
+  </g>
+
+  <!-- Outer wave arc -->
+  <path d="M184 212C226 180 286 180 328 212" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round" fill="none" opacity="0.95" />
+  
+  <!-- Middle wave arc -->
+  <path d="M212 252C237 232 275 232 300 252" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round" fill="none" opacity="0.95" />
+  
+  <!-- Center Node -->
+  <circle cx="256" cy="302" r="18" fill="#FFFFFF" />
+
+  <!-- Mesh interconnected nodes & offline link lines -->
+  <line x1="190" y1="334" x2="256" y2="302" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.75" />
+  <line x1="322" y1="334" x2="256" y2="302" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.75" />
+  <circle cx="190" cy="334" r="10" fill="#FFFFFF" opacity="0.9" />
+  <circle cx="322" cy="334" r="10" fill="#FFFFFF" opacity="0.9" />
+
+  <!-- Pulse beacon dot on top-right -->
+  <circle cx="384" cy="128" r="16" fill="#25D366" />
+  <circle cx="384" cy="128" r="26" stroke="#25D366" stroke-width="4" opacity="0.4" fill="none" />
+</svg>

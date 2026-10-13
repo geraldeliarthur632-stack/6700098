@@ -1,0 +1,244 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: uid
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string (required)
+    //   - photoURL: string (optional)
+    //   - email: string (optional)
+    //   - phoneNumber: string (optional)
+    //   - contacts: list (optional)
+    //   - status: string (required, enum: online, offline, mesh)
+    //   - lastSeen: number (required)
+    //
+    // Collection: conversations
+    // Document ID: conversationId
+    // Fields:
+    //   - id: string (required)
+    //   - participants: list (required, list of uids)
+    //   - updatedAt: number (required)
+    //
+    // Collection: conversations/{conversationId}/messages
+    // Document ID: messageId
+    // Fields:
+    //   - id: string (required)
+    //   - conversationId: string (required)
+    //   - senderId: string (required)
+    //   - text: string (required, max 1048576 chars)
+    //   - type: string (required, enum)
+    //   - fileUrl: string (optional)
+    //   - createdAt: number (required)
+    //   - expiresAt: number (required)
+    //   - delivered: bool (required)
+    //   - seen: bool (required)
+    //   - deliveryMethod: string (required, enum: internet, wifi-direct, bluetooth, mesh, ultrasound, optical-qr, local-lan)
+    //   - duration: number (optional)
+    //   - reactions: map (optional)
+    //   - offlineSynced: bool (optional)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user is in another user's contacts
+    function isContact(uid) {
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(path) && uid in get(path).data.contacts;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isParticipant(participants) {
+      return isAuthenticated() && participants.hasAny([request.auth.uid]);
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email in ["tutuitiktik@gmail.com", "gjhvchhf006@gmail.com"] && request.auth.token.email_verified == true));
+    }
+
+    function isValidQRSession(data) {
+      return data.keys().hasAll(['id', 'secretKey', 'status', 'createdAt', 'expiresAt']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+             data.secretKey is string && data.secretKey.size() > 0 && data.secretKey.size() <= 256 &&
+             data.status in ['pending', 'scanned', 'authenticated', 'completed', 'expired'] &&
+             data.createdAt is number &&
+             data.expiresAt is number &&
+             (!('deviceInfo' in data) || data.deviceInfo is map) &&
+             (!('authenticatedUid' in data) || data.authenticatedUid is string) &&
+             (!('encryptedPayload' in data) || (data.encryptedPayload is string && data.encryptedPayload.size() <= 65536)) &&
+             (!('pairedAt' in data) || data.pairedAt is number);
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'status', 'lastSeen']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.status in ['online', 'offline', 'mesh'] &&
+             data.lastSeen is number &&
+             (!('photoURL' in data) || data.photoURL == null || data.photoURL is string) &&
+             (!('email' in data) || data.email == null || data.email is string) &&
+             (!('phoneNumber' in data) || data.phoneNumber == null || data.phoneNumber is string) &&
+             (!('isTyping' in data) || data.isTyping is bool) &&
+             (!('publicKey' in data) || data.publicKey is string) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() < 500)) &&
+             (!('password' in data) || (data.password is string && data.password.size() < 100)) &&
+             (!('contacts' in data) || data.contacts is list) &&
+             (!('archivedConversations' in data) || data.archivedConversations is list) &&
+             (!('permissionsConfigured' in data) || data.permissionsConfigured is bool) &&
+             (!('profileCompleted' in data) || data.profileCompleted is bool) &&
+             (!('backupMetadata' in data) || data.backupMetadata is map) &&
+             (!('role' in data) || data.role in ['admin', 'user']);
+    }
+
+    function isValidPublicUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'status', 'lastSeen']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.status in ['online', 'offline', 'mesh'] &&
+             data.lastSeen is number &&
+             !('email' in data) && !('phoneNumber' in data) && !('contacts' in data) && !('password' in data) &&
+             (!('photoURL' in data) || data.photoURL == null || data.photoURL is string) &&
+             (!('isTyping' in data) || data.isTyping is bool) &&
+             (!('publicKey' in data) || data.publicKey is string);
+    }
+
+    function isValidConversation(data) {
+      return data.keys().hasAll(['id', 'participants', 'updatedAt']) &&
+             data.id is string &&
+             data.participants is list && data.participants.size() >= 1 &&
+             data.updatedAt is number &&
+             (!('isGroup' in data) || data.isGroup is bool) &&
+             (!('groupName' in data) || data.groupName is string) &&
+             (!('groupPhoto' in data) || data.groupPhoto is string) &&
+             (!('adminId' in data) || data.adminId is string) &&
+             (!('archivedBy' in data) || data.archivedBy is list) &&
+             (!('lastMessage' in data) || data.lastMessage == null || data.lastMessage is map);
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['id', 'conversationId', 'senderId', 'text', 'type', 'createdAt', 'expiresAt', 'delivered', 'seen', 'deliveryMethod', 'isEncrypted']) &&
+             data.id is string &&
+             data.conversationId is string &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() <= 1048576 &&
+             data.type in ['text', 'image', 'video', 'file', 'audio'] &&
+             data.createdAt is number &&
+             data.expiresAt is number &&
+             data.delivered is bool &&
+             data.seen is bool &&
+             data.deliveryMethod in ['internet', 'wifi-direct', 'bluetooth', 'mesh', 'ultrasound', 'optical-qr', 'local-lan'] &&
+             data.isEncrypted is bool &&
+             (!('duration' in data) || data.duration is number) &&
+             (!('reactions' in data) || data.reactions is map) &&
+             (!('readAt' in data) || data.readAt is number) &&
+             (!('status' in data) || data.status in ['sent', 'delivered', 'read']) &&
+             (!('pendingOfflineSync' in data) || data.pendingOfflineSync is bool) &&
+             (!('offlineSynced' in data) || data.offlineSynced is bool) &&
+             (!('fileUrl' in data) || data.fileUrl == null || data.fileUrl is string);
+    }
+
+    function isValidStatus(data) {
+      return data.keys().hasAll(['uid', 'userName', 'content', 'type', 'createdAt', 'expiresAt', 'seenBy']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.userName is string &&
+             data.content is string && data.content.size() < 1048576 &&
+             data.type in ['text', 'image'] &&
+             data.createdAt is number &&
+             data.expiresAt is number &&
+             data.seenBy is list &&
+             (!('userPhoto' in data) || data.userPhoto == null || data.userPhoto is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isAuthenticated() && (request.auth.uid == uid) && isValidUser(request.resource.data) && 
+                    (!('role' in request.resource.data) || request.resource.data.role == 'user' || isAdmin());
+      allow update: if isAuthenticated() && (request.auth.uid == uid) && isValidUser(request.resource.data) && 
+                    (!('role' in request.resource.data) || request.resource.data.role == resource.data.role || isAdmin());
+
+      match /backups/{backupId} {
+        allow read, write, delete: if isOwner(uid) || isAdmin();
+      }
+    }
+
+    match /users_public/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (request.auth.uid == uid) && isValidPublicUser(request.resource.data);
+      allow update: if isAuthenticated() && (request.auth.uid == uid) && isValidPublicUser(request.resource.data);
+    }
+
+    match /users_search/{id} {
+      allow get: if isAuthenticated();
+      allow list: if false;
+      allow create, update: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    match /status/{statusId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid || 
+        isContact(resource.data.uid)
+      );
+      allow create: if isAuthenticated() && isValidStatus(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (resource.data.uid == request.auth.uid && isValidStatus(request.resource.data)) ||
+        (isContact(resource.data.uid) && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']))
+      );
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if isParticipant(resource.data.participants);
+      allow create: if isAuthenticated() && isValidConversation(request.resource.data) && isParticipant(request.resource.data.participants);
+      allow update: if isParticipant(resource.data.participants) && isValidConversation(request.resource.data);
+
+      match /messages/{messageId} {
+        allow read: if isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants);
+        allow create: if isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants) && 
+                      isValidMessage(request.resource.data) &&
+                      request.resource.data.id == messageId;
+        allow update: if isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants) && 
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['delivered', 'seen', 'reactions', 'offlineSynced', 'readAt', 'status']));
+        allow delete: if isParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants);
+      }
+    }
+
+    match /qr_sessions/{sessionId} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isValidQRSession(request.resource.data) && 
+                    request.resource.data.id == sessionId &&
+                    request.resource.data.status == 'pending';
+      allow update: if isValidQRSession(request.resource.data) &&
+                    request.resource.data.id == sessionId &&
+                    (
+                      (isAuthenticated() && request.resource.data.status in ['scanned', 'authenticated'] && request.resource.data.authenticatedUid == request.auth.uid) ||
+                      (request.resource.data.status in ['completed', 'expired'])
+                    );
+      allow delete: if true;
+    }
+  }
+}

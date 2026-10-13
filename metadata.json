@@ -1,0 +1,9 @@
+{
+  "name": " OffGrid",
+  "description": "A WhatsApp-style messaging app with support for Internet, Wi-Fi Direct, Hotspot, Bluetooth, and Mesh networking. Works online and offline.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
